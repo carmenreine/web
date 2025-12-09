@@ -35,6 +35,9 @@ from flask_cors import CORS
 import psycopg2
 import psycopg2.extras
 import secrets
+import os
+import urllib.parse as up
+
 
 user = "leire"
 password = "leire"
@@ -61,7 +64,8 @@ class Database:
             host=self.host,
             database=self.db,
             user=self.user,
-            password=self.password
+            password=self.password,
+            sslmode="require"
         )
 
     def init_schema(self):
@@ -338,16 +342,22 @@ class AppServer:
         CORS(
             self.app,
             supports_credentials=True,
-            origins=["http://localhost:5173"]
+            origins=["*"]
         )
+
+        DATABASE_URL = os.getenv("DATABASE_URL")
+        if not DATABASE_URL:
+            raise RuntimeError("DATABASE_URL no está definida en Render")
+
+        # Parsear la URL de Render
+        url = up.urlparse(DATABASE_URL)
 
         self.db = Database(
-            host="localhost",
-            db="portaljuegosdb",
-            user=user,
-            password=password
+            host=url.hostname,
+            db=url.path[1:],  # Sin la barra inicial
+            user=url.username,
+            password=url.password
         )
-
         self.db.init_schema()
 
         self.users = UserService(self.db)
@@ -398,7 +408,7 @@ class AppServer:
             print("Datos recibidos desde frontend:", data)
 
             # Usa el servicio de usuarios
-            token = server.users.login(username, password)
+            token = self.users.login(username, password)
             if not token:
                 return jsonify({"error": "Credenciales incorrectas"}), 401
 
@@ -531,6 +541,8 @@ class AppServer:
 # ============================================================
 # === INICIO DE EJECUCIÓN ===================================
 # ============================================================
+server = AppServer()
+app = server.app  # Render y Gunicorn usarán esta variable
+
 if __name__ == "__main__":
-    server = AppServer()
-    server.run()
+    app.run(host="0.0.0.0", port=9000, debug=True)
