@@ -6,7 +6,7 @@ import router from './router'
 import axios from 'axios'
 
 // Configuración global de Axios
-axios.defaults.baseURL = 'http://localhost:9000'
+axios.defaults.baseURL = 'https://web-7wmu.onrender.com'
 axios.defaults.withCredentials = true // para las cookies de Flask
 
 const app = createApp(App)
